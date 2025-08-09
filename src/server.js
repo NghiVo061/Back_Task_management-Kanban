@@ -5,7 +5,7 @@ import { CONNECT_DB, GET_DB, CLOSE_DB } from '~/config/mongodb'
 import { APIs_v1 } from '~/routers/v1/index'
 import exitHook from 'async-exit-hook'
 import { env } from '~/config/enviroment'
-
+import { errorHandlingMiddleware } from '~/middlewares/errorHandlingMiddleware'
 
 const START_SERVER = () => {
   const app = express()
@@ -21,14 +21,18 @@ const START_SERVER = () => {
     res.send('Hello World!')
   })
   
+  // Middleware xử lý lỗi tập trung chứa 4 tham số, khi router bị lỗi và gọi next(error) thì các lỗi sẽ truyền về đây
+  app.use(errorHandlingMiddleware)
+
+
   app.listen(port, () => {
     console.log(`Example app listening on port ${port}`)
   })
 
-  //Cơ chế gọi close connection
+  //Cơ chế gọi close connection (exitHook giúp ghi nhận thao tác đóng của ng dùng: ctr + c, close tab)
   exitHook(async () => {
     try {
-      await CLOSE_DB();
+      await CLOSE_DB()
     } catch (error) {
       console.error('Error closing database:', error)
     }
@@ -38,7 +42,7 @@ const START_SERVER = () => {
 (async () => {
   try {
     console.log('1. Connecting to MongoDB Cloud Atlas...')
-    await CONNECT_DB();
+    await CONNECT_DB()
     console.log('2. Connected to MongoDB Cloud Atlas!')
 
     START_SERVER()
