@@ -41,6 +41,14 @@ const findOneById = async (id) => {
 
   return result
 }
+
+const getDetails = async (id) => {
+  const result = GET_DB().collection(BOARD_COLLECTION_NAME).findOne({
+    _id: new ObjectId(id)
+  })
+
+  return result
+}
 export const boardModel = {
   BOARD_COLLECTION_NAME,
   BOARD_COLLECTION_SCHEMA,
