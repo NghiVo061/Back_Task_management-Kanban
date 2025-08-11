@@ -2,27 +2,30 @@
 /* eslint-disable no-console */
 import express from 'express'
 import cors from 'cors'
-import { CONNECT_DB, GET_DB, CLOSE_DB } from '~/config/mongodb'
+import { corsOptions } from '~/config/cors'
+import { CONNECT_DB, CLOSE_DB } from '~/config/mongodb'
 import { APIs_v1 } from '~/routers/v1/index'
 import exitHook from 'async-exit-hook'
-import { env } from '~/config/enviroment'
+import { env } from '~/config/environment'
 import { errorHandlingMiddleware } from '~/middlewares/errorHandlingMiddleware'
 
 const START_SERVER = () => {
   const app = express()
   const port = env.PORT || 8888
   const hostName = env.HOST_NAME
-  
+
   app.use(express.json())
 
-  app.use(cors())
+  // Xử lý cors
+  app.use(cors(corsOptions))
+
   // call router index
   app.use('/v1', APIs_v1)
 
   app.get('/', (req, res) => {
     res.send('Hello World!')
   })
-  
+
   // Middleware xử lý lỗi tập trung chứa 4 tham số, khi router bị lỗi và gọi next(error) thì các lỗi sẽ truyền về đây
   app.use(errorHandlingMiddleware)
 
