@@ -35,7 +35,7 @@ const createNew = async (data) => {
 }
 
 const findOneById = async (id) => {
-  const result = GET_DB().collection(BOARD_COLLECTION_NAME).findOne({
+  const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOne({
     _id: new ObjectId(id)
   })
 
@@ -43,7 +43,7 @@ const findOneById = async (id) => {
 }
 
 const getDetails = async (id) => {
-  const result = GET_DB().collection(BOARD_COLLECTION_NAME).findOne({
+  const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOne({
     _id: new ObjectId(id)
   })
 

@@ -1,6 +1,7 @@
 /* eslint-disable no-trailing-spaces */
 /* eslint-disable no-console */
 import express from 'express'
+import cors from 'cors'
 import { CONNECT_DB, GET_DB, CLOSE_DB } from '~/config/mongodb'
 import { APIs_v1 } from '~/routers/v1/index'
 import exitHook from 'async-exit-hook'
@@ -14,6 +15,7 @@ const START_SERVER = () => {
   
   app.use(express.json())
 
+  app.use(cors())
   // call router index
   app.use('/v1', APIs_v1)
 
@@ -52,11 +54,3 @@ const START_SERVER = () => {
   }
 })()
 
-
-// CONNECT_DB()
-//   .then(() => console.log('Connected to MongoDB Cloud Atlas!'))
-//   .then(() => START_SERVER())
-//   .catch(error => {
-//     console.error(error)
-//     process.exit(0)
-// })
