@@ -4,6 +4,7 @@ import { slugify } from '~/utils/formatters'
 import { boardModel } from '~/models/boardModel'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
+import { cloneDeep } from 'lodash'
 
 const createNew = async (reqBody) => {
     try {
@@ -30,9 +31,19 @@ const getDetails = async (boardId) => {
         if (!board) {
             throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
         }
-        return board
+
+        // Sử dụng cloneDeep: để tạo bản sao và tùy trình cấu trúc dữ liệu trả về cho client
+        const resBoard = cloneDeep(board);
+        resBoard.columns.forEach(column => {
+            // Tạo trường cards và gán phần tử mảng cards (gốc) vào nếu trùng columnId với column.id
+            column.cards = resBoard.cards.filter(card => card.columnId.equals(column._id))
+        })
+        delete resBoard.cards
+
+        return resBoard
     } catch (error) {
         throw error
     }
 }
+
 export const boardService = { createNew, getDetails }
