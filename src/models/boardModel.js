@@ -5,8 +5,8 @@ import { BOARD_TYPES } from '~/utils/constants'
 import { GET_DB } from '~/config/mongodb'
 import { columnModel } from '~/models/columnModel'
 import { cardModel } from '~/models/cardModel'
-const BOARD_COLLECTION_NAME = 'boards'
 
+const BOARD_COLLECTION_NAME = 'boards'
 const BOARD_COLLECTION_SCHEMA = Joi.object({
   title: Joi.string().required().min(3).max(50).trim().strict(),
   slug: Joi.string().required().min(3).trim().strict(),
@@ -53,6 +53,7 @@ const getDetails = async (id) => {
       _destroy: false
     } },
     { $lookup: {
+      // Thêm 1 mảng chứa các column thuộc các
       from: columnModel.COLUMN_COLLECTION_NAME,
       localField: '_id', // Primary key
       foreignField: 'boardId', // Foreign key
@@ -67,10 +68,28 @@ const getDetails = async (id) => {
   ]).toArray()
   return result[0] || null
 }
+
+const pushColumnOrderIds = async (column) => {
+  try {
+    const result = await GET_DB()
+      .collection(BOARD_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: new ObjectId(column.boardId) }, // Find board
+        { $push: { columnOrderIds: new ObjectId(column._id) } }, // Update board
+        { returnDocument: 'after' }
+      )
+
+    return result.value
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const boardModel = {
   BOARD_COLLECTION_NAME,
   BOARD_COLLECTION_SCHEMA,
   createNew,
   findOneById,
-  getDetails
+  getDetails,
+  pushColumnOrderIds
 }

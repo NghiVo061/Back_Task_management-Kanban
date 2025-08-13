@@ -1,5 +1,4 @@
 /* eslint-disable indent */
-/* eslint-disable no-useless-catch */
 import { slugify } from '~/utils/formatters'
 import { boardModel } from '~/models/boardModel'
 import ApiError from '~/utils/ApiError'
@@ -13,10 +12,7 @@ const createNew = async (reqBody) => {
             slug: slugify(reqBody.title)
         }
         const createBoard = await boardModel.createNew(newBoard)
-
         const getNewBoard = await boardModel.findOneById(createBoard.insertedId)
-    
-        console.log('>>>Service: ', getNewBoard)
 
         return getNewBoard
     } catch (error) {
@@ -33,7 +29,7 @@ const getDetails = async (boardId) => {
         }
 
         // Sử dụng cloneDeep: để tạo bản sao và tùy trình cấu trúc dữ liệu trả về cho client
-        const resBoard = cloneDeep(board);
+        const resBoard = cloneDeep(board)
         resBoard.columns.forEach(column => {
             // Tạo trường cards và gán phần tử mảng cards (gốc) vào nếu trùng columnId với column.id
             column.cards = resBoard.cards.filter(card => card.columnId.equals(column._id))
