@@ -10,13 +10,13 @@ const createNew = async (reqBody) => {
         }
         const createCard = await cardModel.createNew(newCard)
 
-        const getNewCard = await cardModel.findOneById(createCard.insertedId)
+        const NewCard = await cardModel.findOneById(createCard.insertedId)
         
-        if (getNewCard) {
+        if (NewCard) {
 
-            await columnModel.pushCardOrderIds(getNewCard)
+            await columnModel.pushCardOrderIds(NewCard)
         }
-        return getNewCard
+        return NewCard
     } catch (error) {
         throw error
     }

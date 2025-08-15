@@ -7,5 +7,7 @@ Router.route('/')
   // validation -> controller
   .post(columnValidation.createNew, columnController.createNew)
 
+Router.route('/:id')
+  .put(columnValidation.update, columnController.update)
 
 export const columnRouter = Router

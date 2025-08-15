@@ -10,20 +10,30 @@ const createNew = async (reqBody) => {
         }
         const createColumn = await columnModel.createNew(newColumn)
 
-        const getNewColumn = await columnModel.findOneById(createColumn.insertedId)
-        if (getNewColumn) {
+        const NewColumn = await columnModel.findOneById(createColumn.insertedId)
+        if (NewColumn) {
             // Xử lý cấu trúc data ở đây trước khi trả dữ liệu về
-            getNewColumn.cards = []
+            NewColumn.cards = []
 
             // Cập nhật mảng columnOrderIds vào trong collection boards
-            await boardModel.pushColumnOrderIds(getNewColumn)
+            await boardModel.pushColumnOrderIds(NewColumn)
         }
 
-        return getNewColumn
+        return NewColumn
     } catch (error) {
         throw error
     }
 }
 
+const update = async (columnId, reqBody) => {
+  try {
+    const updatedData = {
+      ...reqBody,
+      updatedAt: Date.now()
+    }
+    const updatedColumn = await columnModel.update(columnId, updatedData)
+    return updatedColumn
+  } catch (error) { throw error }
+}
 
-export const columnService = { createNew }
+export const columnService = { createNew, update }
