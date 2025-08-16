@@ -41,18 +41,18 @@ const createNew = async (data) => {
   }
 }
 
-const findOneById = async (id) => {
+const findOneById = async (boardId) => {
   const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOne({
-    _id: new ObjectId(id)
+    _id: new ObjectId(boardId)
   })
 
   return result
 }
 
-const getDetails = async (id) => {
+const getDetails = async (boardId) => {
   const result = await GET_DB().collection(BOARD_COLLECTION_NAME).aggregate([
     { $match: {
-      _id: new ObjectId(id),
+      _id: new ObjectId(boardId),
       _destroy: false
     } },
     { $lookup: {
@@ -72,6 +72,7 @@ const getDetails = async (id) => {
   return result[0] || null
 }
 
+// Đẩy vào board
 const pushColumnOrderIds = async (column) => {
   try {
     const result = await GET_DB()
@@ -87,6 +88,19 @@ const pushColumnOrderIds = async (column) => {
     throw new Error(error)
   }
 }
+
+// Đẩy ra khỏi board
+const pullColumnOrderIds = async (column) => {
+  try {
+    const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(column.boardId) },
+      { $pull: { columnOrderIds: new ObjectId(column._id) } },
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
 
 const update = async (boardId, updatedData) => {
   try {
@@ -120,5 +134,6 @@ export const boardModel = {
   findOneById,
   getDetails,
   pushColumnOrderIds,
-  update
+  update,
+  pullColumnOrderIds
 }
