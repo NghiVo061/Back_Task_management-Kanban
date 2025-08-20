@@ -20,9 +20,6 @@ const verifyAccount = async (req, res, next) => {
 const login = async (req, res, next) => {
   try {
     const result = await userService.login(req.body)
-
-    console.log(result)
-
     res.status(StatusCodes.OK).json(result)
   } catch (error) { next(error) }
 }

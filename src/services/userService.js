@@ -6,7 +6,7 @@ import { StatusCodes } from 'http-status-codes'
 import bcryptjs from 'bcryptjs'
 import { v4 as uuidv4 } from 'uuid'
 import { pickUser } from '~/utils/formatters'
-import { emailProvider } from '~/providers/emailProvider'
+import { nodeMailer } from '~/providers/emailProvider'
 import { JwtProvider } from '~/providers/JwtProvider'
 
 const createNew = async (reqBody) => {
@@ -16,7 +16,6 @@ const createNew = async (reqBody) => {
       throw new ApiError(StatusCodes.CONFLICT, 'Email already exists!')
     }
 
-    // Tạo data để lưu vào Database
     const nameFromEmail = reqBody.email.split('@')[0]
     const newUser = {
       email: reqBody.email,
@@ -39,8 +38,8 @@ const createNew = async (reqBody) => {
       <h3>${verificationLink}</h3>
       <h3>Sincerely,<br> - Joji - Task management website - </h3>
     `
-    await emailProvider.sendEmail(getNewUser.email, getNewUser.userName, customSubject, htmlContent)
-    // return trả về dữ liệu cho phía Controller
+    await nodeMailer.sendEmail(getNewUser.email, getNewUser.userName, customSubject, htmlContent)
+
     return pickUser(getNewUser)
   } catch (error) { throw error }
 }
@@ -95,7 +94,7 @@ const login = async (reqBody) => {
       env.REFRESH_TOKEN_SECRET_SIGNATURE,
       env.REFRESH_TOKEN_LIFE)
 
-    return {accessToken, refreshToken, ...pickUser(existUser) }
+    return { accessToken, refreshToken, ...pickUser(existUser) }
   } catch (error) {
     throw error
   }
