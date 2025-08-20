@@ -12,7 +12,6 @@ import { errorHandlingMiddleware } from '~/middlewares/errorHandlingMiddleware'
 const START_SERVER = () => {
   const app = express()
   const port = env.PORT || 8888
-  const hostName = env.HOST_NAME
 
   app.use(express.json())
 

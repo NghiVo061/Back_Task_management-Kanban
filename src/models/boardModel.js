@@ -75,18 +75,13 @@ const getDetails = async (boardId) => {
 // Đẩy vào board
 const pushColumnOrderIds = async (column) => {
   try {
-    const result = await GET_DB()
-      .collection(BOARD_COLLECTION_NAME)
-      .findOneAndUpdate(
-        { _id: new ObjectId(column.boardId) }, // Find board
-        { $push: { columnOrderIds: new ObjectId(column._id) } }, // Update board
-        { returnDocument: 'after' }
-      )
-
+    const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(column.boardId) },
+      { $push: { columnOrderIds: new ObjectId(column._id) } },
+      { returnDocument: 'after' }
+    )
     return result
-  } catch (error) {
-    throw new Error(error)
-  }
+  } catch (error) { throw new Error(error) }
 }
 
 // Đẩy ra khỏi board
