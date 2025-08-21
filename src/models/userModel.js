@@ -10,14 +10,14 @@ const USER_ROLES = {
 
 const USER_COLLECTION_NAME = 'users'
 const USER_COLLECTION_SCHEMA = Joi.object({
-  email: Joi.string().required().pattern(EMAIL_RULE).message(EMAIL_RULE_MESSAGE),
+  email: Joi.string().required().pattern(EMAIL_RULE).message(EMAIL_RULE_MESSAGE), // unique
   password: Joi.string().required(),
+  // username cắt ra từ email sẽ có khả năng không unique bởi vì sẽ có những tên email trùng nhau nhưng từ các nhà cung cấp khác nhau
   userName: Joi.string().required().trim().strict(),
   displayName: Joi.string().required().trim().strict(),
   avatar: Joi.string().default(null),
   role: Joi.string().valid(...Object.values(USER_ROLES)).default(USER_ROLES.CLIENT),
 
-  // Check user đã xác nhận đăng ký tk trong email chưa
   isActive: Joi.boolean().default(false),
   verifyToken: Joi.string(),
 
@@ -26,7 +26,7 @@ const USER_COLLECTION_SCHEMA = Joi.object({
   _destroy: Joi.boolean().default(false)
 })
 
-const INVALID_UPDATE_FIELDS = ['_id', 'email', 'username', 'createdAt']
+const INVALID_UPDATE_FIELDS = ['_id', 'email', 'userName', 'createdAt']
 
 const validateBeforeCreate = async (data) => {
   return await USER_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })

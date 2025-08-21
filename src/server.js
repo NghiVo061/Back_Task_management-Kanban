@@ -8,15 +8,22 @@ import { APIs_v1 } from '~/routers/v1/index'
 import exitHook from 'async-exit-hook'
 import { env } from '~/config/environment'
 import { errorHandlingMiddleware } from '~/middlewares/errorHandlingMiddleware'
+import cookieParser from 'cookie-parser'
 
 const START_SERVER = () => {
   const app = express()
   const port = env.PORT || 8888
 
-  app.use(express.json())
+  app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store')
+    next()
+  })
 
+  app.use(cookieParser())
   // Xử lý cors
   app.use(cors(corsOptions))
+
+  app.use(express.json())
 
   // call router index
   app.use('/v1', APIs_v1)
