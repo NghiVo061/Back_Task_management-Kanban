@@ -17,7 +17,8 @@ const isAuthorized = async (req, res, next) => {
       env.ACCESS_TOKEN_SECRET_SIGNATURE
     )
 
-    req.jwtDecoded = accessTokenDecoded
+    req.jwtDecoded = accessTokenDecoded // id, email, ...
+
     next()
   } catch (error) {
     if (error?.message?.includes('jwt expired')) {
