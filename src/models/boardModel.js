@@ -5,6 +5,7 @@ import { BOARD_TYPES } from '~/utils/constants'
 import { GET_DB } from '~/config/mongodb'
 import { columnModel } from '~/models/columnModel'
 import { cardModel } from '~/models/cardModel'
+import { pagingSkipValue } from '~/utils/algorithms'
 
 const BOARD_COLLECTION_NAME = 'boards'
 const BOARD_COLLECTION_SCHEMA = Joi.object({
@@ -14,6 +15,14 @@ const BOARD_COLLECTION_SCHEMA = Joi.object({
   type: Joi.string().valid(BOARD_TYPES.PUBLIC, BOARD_TYPES.PRIVATE).required(),
 
   columnOrderIds: Joi.array().items(
+    Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+  ).default([]),
+
+  ownerIds: Joi.array().items(
+    Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+  ).default([]),
+
+  memberIds: Joi.array().items(
     Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
   ).default([]),
 
@@ -121,6 +130,49 @@ const update = async (boardId, updatedData) => {
   }
 }
 
+const getBoards = async (userId, page, itemsPerPage, queryFilters) => {
+  try {
+    const queryConditions = [
+      { _destroy: false },
+      { $or: [
+        { ownerIds: { $all: [new ObjectId(userId)] } },
+        { memberIds: { $all: [new ObjectId(userId)] } }
+      ] }
+    ]
+
+    if (queryFilters) {
+      Object.keys(queryFilters).forEach(key => {
+        queryConditions.push({ [key]: { $regex: new RegExp(queryFilters[key], 'i') } })
+      })
+    }
+
+    const query = await GET_DB().collection(BOARD_COLLECTION_NAME).aggregate(
+      [
+        { $match: { $and: queryConditions } },
+        { $sort: { title: 1 } },
+        { $facet: {
+          'queryBoards': [
+            // Lượt bỏ số board những page phía trước: 3 (2,1)
+            { $skip: pagingSkipValue(page, itemsPerPage) },
+            // Lấy số item (board) cho 1 page: 12
+            { $limit: itemsPerPage }
+          ],
+          'queryTotalBoards': [{ $count: 'countedAllBoards' }]
+        } }
+      ],
+      { collation: { locale: 'en' } }
+    ).toArray()
+
+    const res = query[0]
+    return {
+      boards: res.queryBoards || [],
+      totalBoards: res.queryTotalBoards[0]?.countedAllBoards || 0
+    }
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 
 export const boardModel = {
   BOARD_COLLECTION_NAME,
@@ -130,5 +182,6 @@ export const boardModel = {
   getDetails,
   pushColumnOrderIds,
   update,
-  pullColumnOrderIds
+  pullColumnOrderIds,
+  getBoards
 }
