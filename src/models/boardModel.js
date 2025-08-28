@@ -6,7 +6,7 @@ import { GET_DB } from '~/config/mongodb'
 import { columnModel } from '~/models/columnModel'
 import { cardModel } from '~/models/cardModel'
 import { pagingSkipValue } from '~/utils/algorithms'
-
+import { userModel } from '~/models/userModel'
 const BOARD_COLLECTION_NAME = 'boards'
 const BOARD_COLLECTION_SCHEMA = Joi.object({
   title: Joi.string().required().min(3).max(50).trim().strict(),
@@ -38,13 +38,15 @@ const validateData = async (data) => {
   return await BOARD_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
-const createNew = async (data) => {
+const createNew = async (userId, data) => {
   try {
-    const validatedData = await validateData(data)
-
-    const createBoard = GET_DB().collection(BOARD_COLLECTION_NAME).insertOne(validatedData)
-
-    return createBoard
+    const validData = await validateData(data)
+    const newBoardToAdd = {
+      ...validData,
+      ownerIds: [new ObjectId(userId)]
+    }
+    const createdBoard = await GET_DB().collection(BOARD_COLLECTION_NAME).insertOne(newBoardToAdd)
+    return createdBoard
   } catch (error) {
     throw new Error(error)
   }
@@ -58,12 +60,17 @@ const findOneById = async (boardId) => {
   return result
 }
 
-const getDetails = async (boardId) => {
+const getDetails = async (userId, boardId) => {
+  const queryConditions = [
+    { _id: new ObjectId(boardId) },
+    { _destroy: false },
+    { $or: [
+      { ownerIds: { $all: [new ObjectId(userId)] } },
+      { memberIds: { $all: [new ObjectId(userId)] } }
+    ] }
+  ]
   const result = await GET_DB().collection(BOARD_COLLECTION_NAME).aggregate([
-    { $match: {
-      _id: new ObjectId(boardId),
-      _destroy: false
-    } },
+    { $match: { $and: queryConditions } },
     { $lookup: {
       // Thêm 1 mảng chứa các column thuộc các
       from: columnModel.COLUMN_COLLECTION_NAME,
@@ -76,6 +83,22 @@ const getDetails = async (boardId) => {
       localField: '_id',
       foreignField: 'boardId',
       as: 'cards'
+    } },
+    { $lookup: {
+      from: userModel.USER_COLLECTION_NAME,
+      localField: 'ownerIds',
+      foreignField: '_id',
+      as: 'owners',
+      // pipeline trong lookup là để xử lý một hoặc nhiều luồng cần thiết
+      // $project để chỉ định vài field không muốn lấy về bằng cách gán nó giá trị 0
+      pipeline: [{ $project: { 'password': 0, 'verifyToken': 0 } }]
+    } },
+    { $lookup: {
+      from: userModel.USER_COLLECTION_NAME,
+      localField: 'memberIds',
+      foreignField: '_id',
+      as: 'members',
+      pipeline: [{ $project: { 'password': 0, 'verifyToken': 0 } }]
     } }
   ]).toArray()
   return result[0] || null
@@ -135,6 +158,7 @@ const getBoards = async (userId, page, itemsPerPage, queryFilters) => {
     const queryConditions = [
       { _destroy: false },
       { $or: [
+        // Kiểm tra userId có nằm thuộc board không
         { ownerIds: { $all: [new ObjectId(userId)] } },
         { memberIds: { $all: [new ObjectId(userId)] } }
       ] }
