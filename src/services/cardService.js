@@ -34,14 +34,13 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
       const uploadResult = await CloudinaryProvider.streamUpload(cardCoverFile.buffer, 'card-covers')
       updatedCard = await cardModel.update(cardId, { cover: uploadResult.secure_url })
     } else if (updateData.commentToAdd) {
-      // Tạo dữ liệu comment để thêm vào Database, cần bổ sung thêm những field cần thiết
       const commentData = {
-        ...updateData.commentToAdd,
+        ...updateData.commentToAdd, // content, display name, avatar
         commentedAt: Date.now(),
         userId: userInfo._id,
         userEmail: userInfo.email
       }
-      updatedCard = await cardModel.unshiftNewComment(cardId, commentData)
+      updatedCard = await cardModel.unshiftNewComment(cardId, commentData) // unshift: đẩy phần tử lên đầu mảng
     } else if (updateData.incomingMemberInfo) {
       // Trường hợp ADD hoặc REMOVE thành viên ra khỏi Card
       updatedCard = await cardModel.updateMembers(cardId, updateData.incomingMemberInfo)
