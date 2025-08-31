@@ -89,10 +89,11 @@ const findByUser = async (userId) => {
       { inviteeId: new ObjectId(userId) },
       { _destroy: false }
     ]
-
+    //
     const results = await GET_DB().collection(INVITATION_COLLECTION_NAME).aggregate([
       { $match: { $and: queryConditions } },
       {
+        // Lấy thông tin inviter từ user collection
         $lookup: {
           from: userModel.USER_COLLECTION_NAME,
           localField: 'inviterId',
@@ -102,6 +103,7 @@ const findByUser = async (userId) => {
         }
       },
       {
+        // Lấy thông tin invitee từ user collection
         $lookup: {
           from: userModel.USER_COLLECTION_NAME,
           localField: 'inviteeId',
@@ -111,6 +113,7 @@ const findByUser = async (userId) => {
         }
       },
       {
+        // Lấy thông tin invitee từ board collection
         $lookup: {
           from: boardModel.BOARD_COLLECTION_NAME,
           localField: 'boardInvitation.boardId',
