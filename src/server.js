@@ -8,7 +8,10 @@ import { APIs_v1 } from '~/routers/v1/index'
 import exitHook from 'async-exit-hook'
 import { env } from '~/config/environment'
 import { errorHandlingMiddleware } from '~/middlewares/errorHandlingMiddleware'
+import { inviteUserToBoardSocket } from '~/sockets/inviteUserToBoardSocket'
 import cookieParser from 'cookie-parser'
+import http from 'http'
+import socketIo from 'socket.io'
 
 const START_SERVER = () => {
   const app = express()
@@ -35,8 +38,15 @@ const START_SERVER = () => {
   // Middleware xử lý lỗi tập trung chứa 4 tham số, khi router bị lỗi và gọi next(error) thì các lỗi sẽ truyền về đây
   app.use(errorHandlingMiddleware)
 
+  const server = http.createServer(app)
+  const io = socketIo(server, { cors: corsOptions })
+  io.on('connection', (socket) => {
+    // Gọi các socket tùy theo tính năng ở đây.
+    inviteUserToBoardSocket(socket)
 
-  app.listen(port, () => {
+    // ...vv
+  })
+  server.listen(port, () => {
     console.log(`Example app listening on port ${port}`)
   })
 

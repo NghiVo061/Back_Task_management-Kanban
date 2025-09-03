@@ -9,7 +9,7 @@ import { pickUser } from '~/utils/formatters'
 import { nodeMailer } from '~/providers/emailProvider'
 import { JwtProvider } from '~/providers/JwtProvider'
 import { CloudinaryProvider } from '~/providers/cloudinaryProvider'
-
+import { cardModel } from '~/models/cardModel'
 const createNew = async (reqBody) => {
   try {
     const existedUser = await userModel.findOneByEmail(reqBody.email)
@@ -145,11 +145,19 @@ const update = async (userId, reqBody, userAvatarFile) => {
       updatedUser = await userModel.update(existUser._id, {
         avatar: uploadResult.secure_url
       })
+
+      await cardModel.updateManyComments(existUser._id.toString(), {
+        avatar: uploadResult.secure_url,
+        displayName: existUser.displayName
+      })
     }
     else {
       updatedUser = await userModel.update(existUser._id, reqBody)
+      await cardModel.updateManyComments(existUser._id.toString(), {
+        avatar: existUser.avatar,
+        displayName: reqBody.displayName
+      })
     }
-
     return pickUser(updatedUser)
   } catch (error) {
     throw error

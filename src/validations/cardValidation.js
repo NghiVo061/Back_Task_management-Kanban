@@ -41,6 +41,7 @@ const update = async (req, res, next) => {
   }
 }
 
+
 export const cardValidation = {
   createNew,
   update

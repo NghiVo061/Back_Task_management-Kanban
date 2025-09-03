@@ -56,7 +56,6 @@ const pushCardOrderIds = async (card) => {
         { $push: { cardOrderIds: new ObjectId(card._id) } },
         { returnDocument: 'after' }
       )
-    console.log('done')
     return result
   } catch (error) {
     throw new Error(error)
@@ -70,7 +69,6 @@ const update = async (columnId, updatedData) => {
         delete updatedData[fieldName]
       }
     })
-    
     if (updatedData.cardOrderIds) {
       updatedData.cardOrderIds = updatedData.cardOrderIds.map(_id => (new ObjectId(_id)))
     }

@@ -1,6 +1,7 @@
 import Joi from 'joi'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 import { EMAIL_RULE, EMAIL_RULE_MESSAGE } from '~/utils/validators'
+import { CARD_MEMBER_ACTIONS } from '~/utils/constants'
 import { GET_DB } from '~/config/mongodb'
 import { ObjectId } from 'mongodb'
 
@@ -104,7 +105,40 @@ const unshiftNewComment = async (cardId, commentData) => {
   } catch (error) { throw new Error(error) }
 }
 
-// còn tiếp
+const updateMembers = async (cardId, incomingMemberInfo) => {
+  try {
+    let updateCondition = {}
+    if (incomingMemberInfo.action === CARD_MEMBER_ACTIONS.ADD) {
+      updateCondition = { $push: { memberIds: new ObjectId(incomingMemberInfo.userId) } }
+    }
+
+    if (incomingMemberInfo.action === CARD_MEMBER_ACTIONS.REMOVE) {
+      updateCondition = { $pull: { memberIds: new ObjectId(incomingMemberInfo.userId) } }
+    }
+
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(cardId) },
+      updateCondition,
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
+const updateManyComments = async (userId, userInfo) => {
+  try {
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).updateMany(
+      { 'comments.userId': userId },
+      { $set: {
+        'comments.$[element].userAvatar': userInfo.avatar,
+        'comments.$[element].userDisplayName': userInfo.displayName
+      } },
+      { arrayFilters: [{ 'element.userId': userId }] }
+    )
+
+    return result
+  } catch (error) { throw new Error(error) }
+}
 
 export const cardModel = {
   CARD_COLLECTION_NAME,
@@ -113,5 +147,7 @@ export const cardModel = {
   findOneById,
   update,
   deleteManyByColumnId,
-  unshiftNewComment
+  unshiftNewComment,
+  updateMembers,
+  updateManyComments
 }

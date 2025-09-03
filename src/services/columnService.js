@@ -14,10 +14,7 @@ const createNew = async (reqBody) => {
 
         const NewColumn = await columnModel.findOneById(createColumn.insertedId)
         if (NewColumn) {
-            // Xử lý cấu trúc data ở đây trước khi trả dữ liệu về
             NewColumn.cards = []
-
-            // Cập nhật mảng columnOrderIds vào trong collection boards
             await boardModel.pushColumnOrderIds(NewColumn)
         }
 

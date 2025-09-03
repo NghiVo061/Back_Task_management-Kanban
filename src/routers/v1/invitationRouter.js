@@ -13,7 +13,7 @@ Router.route('/board')
     invitationController.createNewBoardInvitation
   )
 
-// Lấy thông báo danh sách thông báo lời mời nhận được từ user khác
+// Lấy danh sách thông báo lời mời nhận được từ user khác
 Router.route('/')
   .get(authMiddleware.isAuthorized, invitationController.getInvitations)
 
