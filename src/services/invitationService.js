@@ -6,6 +6,7 @@ import { invitationModel } from '~/models/invitationModel'
 import { INVITATION_TYPES, BOARD_INVITATION_STATUS } from '~/utils/constants'
 import { pickUser } from '~/utils/formatters'
 
+// change
 const createNewBoardInvitation = async (reqBody, inviterId) => {
   try {
     const inviter = await userModel.findOneById(inviterId)
@@ -16,9 +17,20 @@ const createNewBoardInvitation = async (reqBody, inviterId) => {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Inviter, Invitee or Board not found!')
     }
 
+    // Check nếu invitee đã là owner hoặc member thì không cho mời
+    const inviteeIdStr = invitee._id.toString()
+    const boardOwnerAndMemberIds = [
+      ...board.ownerIds.map(id => id.toString()),
+      ...board.memberIds.map(id => id.toString())
+    ]
+
+    if (boardOwnerAndMemberIds.includes(inviteeIdStr)) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'User is already in this board!')
+    }
+
     const newInvitationData = {
       inviterId,
-      inviteeId: invitee._id.toString(), // Chuyển thành string để joi có thể validate sau đó chuyển lại thành object id để đưa vào db
+      inviteeId: inviteeIdStr, // Chuyển thành string để joi có thể validate sau đó chuyển lại thành object id để đưa vào db
       type: INVITATION_TYPES.BOARD_INVITATION,
       boardInvitation: {
         boardId: board._id.toString(),
@@ -63,7 +75,11 @@ const updateBoardInvitation = async (userId, invitationId, status) => {
 
     const boardId = getInvitation.boardInvitation.boardId
     const getBoard = await boardModel.findOneById(boardId)
-    if (!getBoard) throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
+
+    // change
+    if (!getBoard || getBoard._destroy) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found or has been deleted!')
+    }
 
     const boardOwnerAndMemberIds = [...getBoard.ownerIds, ...getBoard.memberIds].toString()
     if (status === BOARD_INVITATION_STATUS.ACCEPTED && boardOwnerAndMemberIds.includes(userId)) {

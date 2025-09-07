@@ -129,11 +129,26 @@ const findByUser = async (userId) => {
   }
 }
 
+// change
+const deleteMany = async (filter) => {
+  try {
+    // Chuyển boardId thành ObjectId nếu có
+    if (filter['boardInvitation.boardId']) {
+      filter['boardInvitation.boardId'] = new ObjectId(filter['boardInvitation.boardId'])
+    }
+    const result = await GET_DB().collection(INVITATION_COLLECTION_NAME).deleteMany(filter)
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const invitationModel = {
   INVITATION_COLLECTION_NAME,
   INVITATION_COLLECTION_SCHEMA,
   createNewBoardInvitation,
   findOneById,
   update,
-  findByUser
+  findByUser,
+  deleteMany
 }

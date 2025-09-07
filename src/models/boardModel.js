@@ -7,6 +7,7 @@ import { columnModel } from '~/models/columnModel'
 import { cardModel } from '~/models/cardModel'
 import { pagingSkipValue } from '~/utils/algorithms'
 import { userModel } from '~/models/userModel'
+import { BOARD_MEMBER_ACTIONS } from '~/utils/constants'
 const BOARD_COLLECTION_NAME = 'boards'
 const BOARD_COLLECTION_SCHEMA = Joi.object({
   title: Joi.string().required().min(3).max(50).trim().strict(),
@@ -208,6 +209,30 @@ const pushMemberIds = async (boardId, userId) => {
   } catch (error) { throw new Error(error) }
 }
 
+const updateMembers = async (boardId, incomingMemberInfo) => {
+  try {
+    // Tạo ra một biến updateCondition ban đầu là rỗng
+    let updateCondition = {}
+
+    if (incomingMemberInfo.action === BOARD_MEMBER_ACTIONS.REMOVE) {
+      updateCondition = { $pull: { memberIds: new ObjectId(incomingMemberInfo.userId) } }
+
+      // Xóa luôn user khỏi tất cả card trong board
+      await GET_DB().collection(cardModel.CARD_COLLECTION_NAME).updateMany(
+        { boardId: new ObjectId(boardId) },
+        { $pull: { memberIds: new ObjectId(incomingMemberInfo.userId) } }
+      )
+    }
+
+    const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(boardId) },
+      updateCondition, // truyền cái updateCondition ở đây
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
 export const boardModel = {
   BOARD_COLLECTION_NAME,
   BOARD_COLLECTION_SCHEMA,
@@ -218,5 +243,6 @@ export const boardModel = {
   update,
   pullColumnOrderIds,
   getBoards,
-  pushMemberIds
+  pushMemberIds,
+  updateMembers
 }

@@ -13,6 +13,11 @@ import cookieParser from 'cookie-parser'
 import http from 'http'
 import socketIo from 'socket.io'
 
+// change
+import { columnSocket } from '~/sockets/columnSocket'
+import { cardSocket } from '~/sockets/cardSocket'
+import boardSocket from './sockets/boardSocket'
+
 const START_SERVER = () => {
   const app = express()
   const port = env.PORT || 8888
@@ -41,10 +46,20 @@ const START_SERVER = () => {
   const server = http.createServer(app)
   const io = socketIo(server, { cors: corsOptions })
   io.on('connection', (socket) => {
-    // Gọi các socket tùy theo tính năng ở đây.
-    inviteUserToBoardSocket(socket)
-
-    // ...vv
+    // change
+    console.log('⚡ A user connected:', socket.id)
+  
+    // Cho client join room theo board (FE sẽ emit FE_JOIN_BOARD khi mở board)
+    socket.on('FE_JOIN_BOARD', (boardId) => {
+      socket.join(`board:${boardId}`)
+      console.log(`User ${socket.id} joined board:${boardId}`)
+    })
+  
+    // Gọi các socket feature
+    inviteUserToBoardSocket(io, socket) // sửa để truyền io vào, dễ broadcast
+    columnSocket(io, socket) // thêm socket xử lý drag-drop column
+    cardSocket(io, socket)
+    boardSocket(io, socket)
   })
   server.listen(port, () => {
     console.log(`Example app listening on port ${port}`)

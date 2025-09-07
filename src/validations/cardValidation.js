@@ -25,7 +25,13 @@ const update = async (req, res, next) => {
   // Lưu ý không dùng hàm required() trong trường hợp Update
   const correctCondition = Joi.object({
     title: Joi.string().min(3).max(50).trim().strict(),
-    description: Joi.string().optional()
+    description: Joi.string().optional(),
+
+    // change
+    attachments: Joi.array().items({
+      url: Joi.string(),
+      filename: Joi.string()
+    }).optional()
   })
 
   try {
@@ -41,8 +47,36 @@ const update = async (req, res, next) => {
   }
 }
 
+const deleteItem = async (req, res, next) => {
+  const correctCondition = Joi.object({
+    id: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+  })
+
+  try {
+    await correctCondition.validateAsync(req.params, { abortEarly: false })
+    next()
+  } catch (error) {
+    next(new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, new Error(error).message))
+  }
+}
+
+const deleteComment = async (req, res, next) => {
+  const correctCondition = Joi.object({
+    cardId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
+    commentId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+  })
+
+  try {
+    await correctCondition.validateAsync(req.params, { abortEarly: false })
+    next()
+  } catch (error) {
+    next(new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, new Error(error).message))
+  }
+}
 
 export const cardValidation = {
   createNew,
-  update
+  update,
+  deleteItem,
+  deleteComment
 }

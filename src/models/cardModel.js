@@ -4,6 +4,7 @@ import { EMAIL_RULE, EMAIL_RULE_MESSAGE } from '~/utils/validators'
 import { CARD_MEMBER_ACTIONS } from '~/utils/constants'
 import { GET_DB } from '~/config/mongodb'
 import { ObjectId } from 'mongodb'
+import { boardModel } from './boardModel'
 
 const CARD_COLLECTION_NAME = 'cards'
 const CARD_COLLECTION_SCHEMA = Joi.object({
@@ -26,6 +27,12 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
     content: Joi.string(),
     // Chỗ này lưu ý vì dùng hàm $push để thêm comment nên không set default Date.now luôn giống hàm insertOne khi create được.
     commentedAt: Joi.date().timestamp()
+  }).default([]),
+
+  attachments: Joi.array().items({
+    url: Joi.string().required(),
+    filename: Joi.string().required(),
+    uploadedAt: Joi.date().timestamp().default(Date.now) // Optional: thêm timestamp
   }).default([]),
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
@@ -140,6 +147,75 @@ const updateManyComments = async (userId, userInfo) => {
   } catch (error) { throw new Error(error) }
 }
 
+// change
+const deleteOneById = async (cardId) => {
+  try {
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).deleteOne({
+      _id: new ObjectId(cardId)
+    })
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+// change
+const deleteComment = async (cardId, commentId, userId) => {
+  try {
+    const card = await findOneById(cardId)
+    if (!card) {
+      throw new Error('Card not found')
+    }
+    const comment = card.comments.find(c => c._id.toString() === commentId)
+    if (!comment) {
+      throw new Error('Comment not found')
+    }
+    const board = await boardModel.findOneById(card.boardId.toString())
+    if (!board) {
+      throw new Error('Board not found')
+    }
+    const isOwner = board.ownerIds.map(id => id.toString()).includes(userId.toString())
+    const isCreator = comment.userId.toString() === userId.toString()
+    if (!isCreator && !isOwner) {
+      throw new Error('You are not authorized to delete this comment')
+    }
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(cardId) },
+      { $pull: { comments: { _id: new ObjectId(commentId) } } },
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+// change
+const updateAttachments = async (cardId, attachmentsArray) => {
+  try {
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(cardId) },
+      { $push: { attachments: { $each: attachmentsArray } }, $set: { updatedAt: Date.now() } },
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) { throw new Error(error) }
+}
+// change
+const removeAttachment = async (cardId, attachmentUrl) => {
+  try {
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(cardId) },
+      { $pull: { attachments: { url: attachmentUrl } }, $set: { updatedAt: Date.now() } },
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+
 export const cardModel = {
   CARD_COLLECTION_NAME,
   CARD_COLLECTION_SCHEMA,
@@ -149,5 +225,9 @@ export const cardModel = {
   deleteManyByColumnId,
   unshiftNewComment,
   updateMembers,
-  updateManyComments
+  updateManyComments,
+  deleteOneById,
+  deleteComment,
+  updateAttachments,
+  removeAttachment
 }

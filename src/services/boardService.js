@@ -7,6 +7,7 @@ import ApiError from '~/utils/ApiError'
 import { DEFAULT_PAGE, DEFAULT_ITEMS_PER_PAGE} from '~/utils/constants'
 import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
+import { invitationModel } from '~/models/invitationModel'
 
 const createNew = async (userId, reqBody) => {
     try {
@@ -38,6 +39,18 @@ const getDetails = async (userId, boardId) => {
             column.cards = resBoard.cards.filter(card => card.columnId.equals(column._id))
         })
         delete resBoard.cards
+
+        // change
+        // Sắp xếp lại owners theo đúng thứ tự ownerIds (lọc trùng)
+        resBoard.owners = Array.from(
+          new Set(resBoard.ownerIds.map(id => id.toString()))
+        ).map(id => resBoard.owners.find(u => u._id.equals(id)))
+
+        // change
+        // Sắp xếp lại members theo đúng thứ tự memberIds (lọc trùng)
+        resBoard.members = Array.from(
+          new Set(resBoard.memberIds.map(id => id.toString()))
+        ).map(id => resBoard.members.find(u => u._id.equals(id)))
 
         return resBoard
     } catch (error) {
@@ -73,13 +86,53 @@ const moveCardToDifferentColumn = async (reqBody) => {
   } catch (error) { throw error }
 }
 
-const update = async (boardId, reqBody) => {
+const update = async (boardId, reqBody, userId) => {
   try {
-    const updatedData = {
-      ...reqBody,
-      updatedAt: Date.now()
+    const { incomingMemberInfo, ...updateData } = reqBody
+
+    // Nếu user tự rời board
+    if (
+      incomingMemberInfo?.action === 'REMOVE' &&
+      incomingMemberInfo.userId === userId
+    ) {
+      await boardModel.updateMembers(boardId, incomingMemberInfo)
+      // Trả về thông tin đặc biệt để FE biết user đã rời
+      return { _id: boardId, leftBoard: true }
     }
-    const updatedBoard = await boardModel.update(boardId, updatedData)
+
+    // Nếu có yêu cầu xóa board (_destroy: true), kiểm tra xem userId có phải là owner không
+    if (updateData._destroy) {
+      const board = await boardModel.findOneById(boardId)
+      if (!board) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
+      }
+      if (board.ownerIds.toString() !== userId) {
+        throw new ApiError(StatusCodes.FORBIDDEN, 'Only the board owner can delete this board!')
+      }
+
+      // Soft delete board
+      updateData.updatedAt = Date.now()
+      await boardModel.update(boardId, updateData)
+
+      // Xóa tất cả invitations liên quan đến board
+      await invitationModel.deleteMany({ 'boardInvitation.boardId': boardId })
+
+      return { _id: boardId, _destroy: true }
+    }
+
+    if (incomingMemberInfo) {
+      await boardModel.updateMembers(boardId, incomingMemberInfo)
+    } else {
+      updateData.updatedAt = Date.now()
+      await boardModel.update(boardId, updateData)
+    }
+
+    // Gọi lại service.getDetails để dữ liệu đồng bộ format
+    const updatedBoard = await getDetails(userId, boardId)
+    if (!updatedBoard) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found or user not authorized!')
+    }
+
     return updatedBoard
   } catch (error) { throw error }
 }

@@ -9,12 +9,22 @@ cloudinaryV2.config({
   api_secret: env.CLOUDINARY_API_SECRET
 })
 
-const streamUpload = (fileBuffer, folderName) => {
+const streamUpload = (fileBuffer, folderName, originalName) => {
   return new Promise((resolve, reject) => {
-    const stream = cloudinaryV2.uploader.upload_stream({ folder: folderName }, (err, result) => {
-      if (err) reject(err)
-      else resolve(result)
-    })
+    const stream = cloudinaryV2.uploader.upload_stream(
+      {
+        folder: folderName,
+        resource_type: 'auto',
+        public_id: (originalName || 'file_' + Date.now()).replace(/\s/g, '_')
+      },
+      (err, result) => {
+        if (err) {
+          reject(new Error(`Cloudinary upload failed: ${err.message}`))
+        } else {
+          resolve(result)
+        }
+      }
+    )
     streamifier.createReadStream(fileBuffer).pipe(stream)
   })
 }
