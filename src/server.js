@@ -1,5 +1,3 @@
-/* eslint-disable no-trailing-spaces */
-/* eslint-disable no-console */
 import express from 'express'
 import cors from 'cors'
 import { corsOptions } from '~/config/cors'
@@ -13,10 +11,10 @@ import cookieParser from 'cookie-parser'
 import http from 'http'
 import socketIo from 'socket.io'
 
-// change
 import { columnSocket } from '~/sockets/columnSocket'
 import { cardSocket } from '~/sockets/cardSocket'
 import boardSocket from './sockets/boardSocket'
+import userSocket from './sockets/userSocket'
 
 const START_SERVER = () => {
   const app = express()
@@ -28,44 +26,35 @@ const START_SERVER = () => {
   })
 
   app.use(cookieParser())
-  // Xử lý cors
   app.use(cors(corsOptions))
 
   app.use(express.json())
 
-  // call router index
   app.use('/v1', APIs_v1)
 
   app.get('/', (req, res) => {
     res.send('Hello World!')
   })
 
-  // Middleware xử lý lỗi tập trung chứa 4 tham số, khi router bị lỗi và gọi next(error) thì các lỗi sẽ truyền về đây
   app.use(errorHandlingMiddleware)
 
   const server = http.createServer(app)
   const io = socketIo(server, { cors: corsOptions })
   io.on('connection', (socket) => {
-    // change
-    console.log('⚡ A user connected:', socket.id)
-  
-    // Cho client join room theo board (FE sẽ emit FE_JOIN_BOARD khi mở board)
     socket.on('FE_JOIN_BOARD', (boardId) => {
       socket.join(`board:${boardId}`)
-      console.log(`User ${socket.id} joined board:${boardId}`)
     })
   
-    // Gọi các socket feature
-    inviteUserToBoardSocket(io, socket) // sửa để truyền io vào, dễ broadcast
-    columnSocket(io, socket) // thêm socket xử lý drag-drop column
+    inviteUserToBoardSocket(io, socket)
+    columnSocket(io, socket)
     cardSocket(io, socket)
     boardSocket(io, socket)
+    userSocket(io, socket)
   })
   server.listen(port, () => {
     console.log(`Example app listening on port ${port}`)
   })
 
-  //Cơ chế gọi close connection (exitHook giúp ghi nhận thao tác đóng của ng dùng: ctr + c, close tab)
   exitHook(async () => {
     try {
       await CLOSE_DB()
@@ -87,4 +76,3 @@ const START_SERVER = () => {
     process.exit(0)
   }
 })()
-

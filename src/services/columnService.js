@@ -1,4 +1,3 @@
-/* eslint-disable indent */
 import { columnModel } from '~/models/columnModel'
 import { boardModel } from '~/models/boardModel'
 import { cardModel } from '~/models/cardModel'
@@ -6,23 +5,23 @@ import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 
 const createNew = async (reqBody) => {
-    try {
-        const newColumn = {
-            ...reqBody
-        }
-        const createColumn = await columnModel.createNew(newColumn)
-
-        const NewColumn = await columnModel.findOneById(createColumn.insertedId)
-        if (NewColumn) {
-            NewColumn.cards = []
-            NewColumn.cardOrderIds = [] // change
-            await boardModel.pushColumnOrderIds(NewColumn)
-        }
-
-        return NewColumn
-    } catch (error) {
-        throw error
+  try {
+    const newColumn = {
+      ...reqBody
     }
+    const createColumn = await columnModel.createNew(newColumn)
+
+    const NewColumn = await columnModel.findOneById(createColumn.insertedId)
+    if (NewColumn) {
+      NewColumn.cards = []
+      NewColumn.cardOrderIds = []
+      await boardModel.pushColumnOrderIds(NewColumn)
+    }
+
+    return NewColumn
+  } catch (error) {
+    throw error
+  }
 }
 
 const update = async (columnId, reqBody) => {

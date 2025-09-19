@@ -5,7 +5,6 @@ import { authMiddleware } from '~/middlewares/authMiddleware'
 const Router = express.Router()
 
 Router.route('/')
-  // validation -> controller
   .post(authMiddleware.isAuthorized, columnValidation.createNew, columnController.createNew)
 
 Router.route('/:id')

@@ -1,4 +1,3 @@
-// sockets/columnSocket.js
 import { boardModel } from '~/models/boardModel'
 
 export const columnSocket = (io, socket) => {
@@ -6,10 +5,8 @@ export const columnSocket = (io, socket) => {
     try {
       const { boardId, columnOrderIds } = data
 
-      // Cập nhật DB
       await boardModel.update(boardId, { columnOrderIds })
 
-      // Broadcast cho tất cả client trong cùng board
       io.to(`board:${boardId}`).emit('BE_COLUMN_MOVED', {
         boardId,
         columnOrderIds,
@@ -25,7 +22,6 @@ export const columnSocket = (io, socket) => {
     try {
       const { boardId, createdColumn } = data
 
-      // Broadcast đến tất cả client khác trong room board (trừ sender)
       socket.broadcast.to(`board:${boardId}`).emit('BE_COLUMN_CREATED', {
         boardId,
         createdColumn,
@@ -41,7 +37,6 @@ export const columnSocket = (io, socket) => {
     try {
       const { boardId, columnId, newTitle } = data
 
-      // Không cần update DB vì API đã làm, chỉ broadcast để notify các client khác
       socket.broadcast.to(`board:${boardId}`).emit('BE_COLUMN_UPDATED', {
         boardId,
         columnId,

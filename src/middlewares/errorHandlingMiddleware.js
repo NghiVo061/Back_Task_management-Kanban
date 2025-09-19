@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import { StatusCodes } from 'http-status-codes'
 import { env } from '~/config/environment'
 
@@ -8,7 +7,7 @@ export const errorHandlingMiddleware = (err, req, res, next) => {
   let message = err.message || StatusCodes[err.statusCode]
 
   if (err.name === 'ValidationError') {
-    message = err.details.map(detail => detail.message).join(', ') // Xử lý lỗi Joi
+    message = err.details.map(detail => detail.message).join(', ')
   }
 
   const responseError = {

@@ -3,7 +3,6 @@ import { env } from '~/config/environment'
 import { StatusCodes } from 'http-status-codes'
 import ApiError from '~/utils/ApiError'
 
-// Cors: Xét duyệt domain khi có request nếu trùng domain cho phép mới cho truy cập dữ liệu
 export const corsOptions = {
   origin: function (origin, callback) {
     if (!origin && env.BUILD_MODE === 'dev') {

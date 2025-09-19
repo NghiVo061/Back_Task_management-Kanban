@@ -2,6 +2,7 @@ import { ObjectId } from 'mongodb'
 import { cardModel } from '~/models/cardModel'
 import { columnModel } from '~/models/columnModel'
 import { CloudinaryProvider } from '~/providers/cloudinaryProvider'
+import { GET_DB } from '~/config/mongodb'
 
 const createNew = async (reqBody) => {
   try {
@@ -12,8 +13,7 @@ const createNew = async (reqBody) => {
 
     const NewCard = await cardModel.findOneById(createCard.insertedId)
 
-    if (NewCard) {
-
+    if (NewCard && NewCard.columnId) {
       await columnModel.pushCardOrderIds(NewCard)
     }
     return NewCard
@@ -22,7 +22,6 @@ const createNew = async (reqBody) => {
   }
 }
 
-// change
 const update = async (cardId, reqBody, cardCoverFile, attachmentsFiles = [], userInfo) => {
   try {
     const updateData = {
@@ -32,11 +31,16 @@ const update = async (cardId, reqBody, cardCoverFile, attachmentsFiles = [], use
 
     let updatedCard = {}
 
-    if (cardCoverFile) {
+    if (updateData.action === 'make-subcard') {
+      const { parentCardId } = updateData
+      if (!parentCardId) throw new Error('Parent card ID is required')
+
+      updatedCard = await cardModel.makeSubCard(cardId, parentCardId)
+    }
+    else if (cardCoverFile) {
       const uploadResult = await CloudinaryProvider.streamUpload(cardCoverFile.buffer, 'card-covers')
       updatedCard = await cardModel.update(cardId, { cover: uploadResult.secure_url })
     } else if (reqBody.removeCover) {
-      // Xóa cover bằng cách set cover thành null hoặc chuỗi rỗng
       updatedCard = await cardModel.update(cardId, { cover: null })
     } else if (attachmentsFiles.length > 0) {
       const attachmentsUrls = []
@@ -45,7 +49,7 @@ const update = async (cardId, reqBody, cardCoverFile, attachmentsFiles = [], use
         attachmentsUrls.push({
           url: uploadResult.secure_url,
           filename: file.originalname,
-          size: file.size // Lấy size từ Multer file object
+          size: file.size
         })
       }
       updatedCard = await cardModel.updateAttachments(cardId, attachmentsUrls)
@@ -54,39 +58,45 @@ const update = async (cardId, reqBody, cardCoverFile, attachmentsFiles = [], use
     } else if (updateData.commentToAdd) {
       const commentData = {
         _id: new ObjectId(),
-        ...updateData.commentToAdd, // content, display name, avatar
+        ...updateData.commentToAdd,
         commentedAt: Date.now(),
         userId: userInfo._id,
         userEmail: userInfo.email
       }
-      updatedCard = await cardModel.unshiftNewComment(cardId, commentData) // unshift: đẩy phần tử lên đầu mảng
+      updatedCard = await cardModel.unshiftNewComment(cardId, commentData)
     } else if (updateData.incomingMemberInfo) {
-      // Trường hợp ADD hoặc REMOVE thành viên ra khỏi Card
       updatedCard = await cardModel.updateMembers(cardId, updateData.incomingMemberInfo)
     } else {
-      // Các trường hợp update chung như title, description
       updatedCard = await cardModel.update(cardId, updateData)
     }
-
 
     return updatedCard
   } catch (error) { throw error }
 }
 
-// change
 const deleteItem = async (cardId) => {
   try {
-    // Lấy thông tin card trước khi xóa để có columnId
     const targetCard = await cardModel.findOneById(cardId)
-    if (!targetCard) {
-      throw new Error('Card not found!')
+    if (!targetCard) throw new Error('Card not found!')
+
+    if (targetCard.parentCard) {
+      await GET_DB().collection(cardModel.CARD_COLLECTION_NAME).updateOne(
+        { _id: new ObjectId(targetCard.parentCard) },
+        { $pull: { subCards: new ObjectId(cardId) }, $set: { updatedAt: Date.now() } }
+      )
     }
 
-    // Xóa card
+    if (targetCard.subCards?.length > 0) {
+      for (const subCard of targetCard.subCards) {
+        await deleteItem(subCard._id)
+      }
+    }
+
     await cardModel.deleteOneById(cardId)
 
-    // Cập nhật cardOrderIds trong column (xóa cardId khỏi mảng)
-    await columnModel.pullCardOrderIds(targetCard)
+    if (targetCard.columnId) {
+      await columnModel.pullCardOrderIds(targetCard)
+    }
 
     return { deleteResult: 'Card deleted successfully!' }
   } catch (error) {
@@ -94,7 +104,6 @@ const deleteItem = async (cardId) => {
   }
 }
 
-// change
 const deleteComment = async (cardId, commentId, userInfo) => {
   try {
     const updatedCard = await cardModel.deleteComment(cardId, commentId, userInfo._id)

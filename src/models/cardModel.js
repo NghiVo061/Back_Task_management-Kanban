@@ -9,7 +9,7 @@ import { boardModel } from './boardModel'
 const CARD_COLLECTION_NAME = 'cards'
 const CARD_COLLECTION_SCHEMA = Joi.object({
   boardId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
-  columnId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
+  columnId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE).default(null),
 
   title: Joi.string().required().min(3).max(50).trim().strict(),
   description: Joi.string().optional(),
@@ -18,22 +18,25 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
   memberIds: Joi.array().items(
     Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
   ).default([]),
-  // Dữ liệu comments của Card chúng ta sẽ học cách nhúng - embedded vào bản ghi Card luôn như dưới đây:
   comments: Joi.array().items({
     userId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
     userEmail: Joi.string().pattern(EMAIL_RULE).message(EMAIL_RULE_MESSAGE),
     userAvatar: Joi.string(),
     userDisplayName: Joi.string(),
     content: Joi.string(),
-    // Chỗ này lưu ý vì dùng hàm $push để thêm comment nên không set default Date.now luôn giống hàm insertOne khi create được.
     commentedAt: Joi.date().timestamp()
   }).default([]),
 
   attachments: Joi.array().items({
     url: Joi.string().required(),
     filename: Joi.string().required(),
-    uploadedAt: Joi.date().timestamp().default(Date.now) // Optional: thêm timestamp
+    uploadedAt: Joi.date().timestamp().default(Date.now)
   }).default([]),
+
+  parentCard: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE).default(null),
+  subCards: Joi.array().items(
+    Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+  ).default([]),
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
@@ -41,6 +44,44 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
 })
 
 const INVALID_UPDATE_FIELDS = ['_id', 'boardId', 'createdAt']
+
+const populateSubCards = async (cardId) => {
+  const cardsArray = await GET_DB().collection(CARD_COLLECTION_NAME)
+    .aggregate([
+      { $match: { _id: new ObjectId(cardId) } },
+      {
+        $graphLookup: {
+          from: CARD_COLLECTION_NAME,
+          startWith: '$subCards',
+          connectFromField: 'subCards',
+          connectToField: '_id',
+          as: 'allSubCards'
+        }
+      }
+    ])
+    .toArray()
+
+  const rootCard = cardsArray[0]
+  if (!rootCard) return null
+
+  const idMap = {}
+  rootCard.allSubCards.forEach(card => {
+    idMap[card._id.toString()] = { ...card, subCards: [] }
+  })
+
+  rootCard.allSubCards.forEach(card => {
+    if (card.parentCard) {
+      const parent = idMap[card.parentCard.toString()]
+      if (parent) parent.subCards.push(idMap[card._id.toString()])
+    }
+  })
+
+  const rootSubCards = rootCard.subCards
+    .map(id => idMap[id.toString()])
+    .filter(Boolean)
+
+  return { ...rootCard, subCards: rootSubCards }
+}
 
 const validateData = async (data) => {
   return await CARD_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
@@ -52,9 +93,9 @@ const createNew = async (data) => {
     const newCard = {
       ...validatedData,
       boardId: new ObjectId(validatedData.boardId),
-      columnId: new ObjectId(validatedData.columnId)
+      columnId: validatedData.columnId ? new ObjectId(validatedData.columnId) : null
     }
-    const createCard = GET_DB().collection(CARD_COLLECTION_NAME).insertOne(newCard)
+    const createCard = await GET_DB().collection(CARD_COLLECTION_NAME).insertOne(newCard)
 
     return createCard
   } catch (error) {
@@ -63,11 +104,12 @@ const createNew = async (data) => {
 }
 
 const findOneById = async (cardId) => {
-  const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOne({
-    _id: new ObjectId(cardId)
-  })
-
-  return result
+  try {
+    const populatedCard = await populateSubCards(cardId)
+    return populatedCard
+  } catch (error) {
+    throw new Error(error)
+  }
 }
 
 const update = async (cardId, updatedData) => {
@@ -80,13 +122,14 @@ const update = async (cardId, updatedData) => {
 
     if (updatedData.columnId) updatedData.columnId = new ObjectId(updatedData.columnId)
 
-    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+    await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
       { _id: new ObjectId(cardId) },
       { $set: updatedData },
       { returnDocument: 'after' }
     )
 
-    return result
+    const populatedCard = await populateSubCards(cardId)
+    return populatedCard
   } catch (error) {
     throw new Error(error)
   }
@@ -103,13 +146,17 @@ const deleteManyByColumnId = async (columnId) => {
 
 const unshiftNewComment = async (cardId, commentData) => {
   try {
-    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+    await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
       { _id: new ObjectId(cardId) },
       { $push: { comments: { $each: [commentData], $position: 0 } } },
       { returnDocument: 'after' }
     )
-    return result
-  } catch (error) { throw new Error(error) }
+
+    const populatedCard = await populateSubCards(cardId)
+    return populatedCard
+  } catch (error) {
+    throw new Error(error)
+  }
 }
 
 const updateMembers = async (cardId, incomingMemberInfo) => {
@@ -118,18 +165,21 @@ const updateMembers = async (cardId, incomingMemberInfo) => {
     if (incomingMemberInfo.action === CARD_MEMBER_ACTIONS.ADD) {
       updateCondition = { $push: { memberIds: new ObjectId(incomingMemberInfo.userId) } }
     }
-
     if (incomingMemberInfo.action === CARD_MEMBER_ACTIONS.REMOVE) {
       updateCondition = { $pull: { memberIds: new ObjectId(incomingMemberInfo.userId) } }
     }
 
-    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+    await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
       { _id: new ObjectId(cardId) },
       updateCondition,
       { returnDocument: 'after' }
     )
-    return result
-  } catch (error) { throw new Error(error) }
+
+    const populatedCard = await populateSubCards(cardId)
+    return populatedCard
+  } catch (error) {
+    throw new Error(error)
+  }
 }
 
 const updateManyComments = async (userId, userInfo) => {
@@ -142,12 +192,12 @@ const updateManyComments = async (userId, userInfo) => {
       } },
       { arrayFilters: [{ 'element.userId': userId }] }
     )
-
     return result
-  } catch (error) { throw new Error(error) }
+  } catch (error) {
+    throw new Error(error)
+  }
 }
 
-// change
 const deleteOneById = async (cardId) => {
   try {
     const result = await GET_DB().collection(CARD_COLLECTION_NAME).deleteOne({
@@ -159,7 +209,6 @@ const deleteOneById = async (cardId) => {
   }
 }
 
-// change
 const deleteComment = async (cardId, commentId, userId) => {
   try {
     const card = await findOneById(cardId)
@@ -179,42 +228,78 @@ const deleteComment = async (cardId, commentId, userId) => {
     if (!isCreator && !isOwner) {
       throw new Error('You are not authorized to delete this comment')
     }
-    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+    await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
       { _id: new ObjectId(cardId) },
       { $pull: { comments: { _id: new ObjectId(commentId) } } },
       { returnDocument: 'after' }
     )
-    return result
+
+    const populatedCard = await populateSubCards(cardId)
+    return populatedCard
   } catch (error) {
     throw new Error(error)
   }
 }
 
-// change
 const updateAttachments = async (cardId, attachmentsArray) => {
   try {
-    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+    await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
       { _id: new ObjectId(cardId) },
       { $push: { attachments: { $each: attachmentsArray } }, $set: { updatedAt: Date.now() } },
       { returnDocument: 'after' }
     )
-    return result
-  } catch (error) { throw new Error(error) }
-}
-// change
-const removeAttachment = async (cardId, attachmentUrl) => {
-  try {
-    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
-      { _id: new ObjectId(cardId) },
-      { $pull: { attachments: { url: attachmentUrl } }, $set: { updatedAt: Date.now() } },
-      { returnDocument: 'after' }
-    )
-    return result
+
+    const populatedCard = await populateSubCards(cardId)
+    return populatedCard
   } catch (error) {
     throw new Error(error)
   }
 }
 
+const removeAttachment = async (cardId, attachmentUrl) => {
+  try {
+    await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(cardId) },
+      { $pull: { attachments: { url: attachmentUrl } }, $set: { updatedAt: Date.now() } },
+      { returnDocument: 'after' }
+    )
+
+    const populatedCard = await populateSubCards(cardId)
+    return populatedCard
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const makeSubCard = async (childCardId, parentCardId) => {
+  try {
+    const parentCard = await findOneById(parentCardId)
+    if (!parentCard) throw new Error('Parent card not found')
+    const childCard = await findOneById(childCardId)
+    if (!childCard) throw new Error('Child card not found')
+
+    if (childCard.boardId.toString() !== parentCard.boardId.toString()) {
+      throw new Error('Parent and child cards must belong to the same board')
+    }
+
+    await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(childCardId) },
+      { $set: { parentCard: new ObjectId(parentCardId), columnId: null, updatedAt: Date.now() } },
+      { returnDocument: 'after' }
+    )
+
+    await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(parentCardId) },
+      { $push: { subCards: new ObjectId(childCardId) }, $set: { updatedAt: Date.now() } },
+      { returnDocument: 'after' }
+    )
+
+    const populatedCard = await populateSubCards(childCardId)
+    return populatedCard
+  } catch (error) {
+    throw new Error(error)
+  }
+}
 
 export const cardModel = {
   CARD_COLLECTION_NAME,
@@ -229,5 +314,6 @@ export const cardModel = {
   deleteOneById,
   deleteComment,
   updateAttachments,
-  removeAttachment
+  removeAttachment,
+  makeSubCard
 }

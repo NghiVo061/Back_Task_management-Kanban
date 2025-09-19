@@ -5,7 +5,6 @@ import { authMiddleware } from '~/middlewares/authMiddleware'
 
 const Router = express.Router()
 
-// Thực hiện mới user
 Router.route('/board')
   .post(
     authMiddleware.isAuthorized,
@@ -13,7 +12,6 @@ Router.route('/board')
     invitationController.createNewBoardInvitation
   )
 
-// Lấy danh sách thông báo lời mời nhận được từ user khác
 Router.route('/')
   .get(authMiddleware.isAuthorized, invitationController.getInvitations)
 

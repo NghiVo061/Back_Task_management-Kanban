@@ -73,11 +73,10 @@ const getDetails = async (userId, boardId) => {
   const result = await GET_DB().collection(BOARD_COLLECTION_NAME).aggregate([
     { $match: { $and: queryConditions } },
     { $lookup: {
-      // Thêm 1 mảng chứa các column thuộc các
       from: columnModel.COLUMN_COLLECTION_NAME,
-      localField: '_id', // Primary key
-      foreignField: 'boardId', // Foreign key
-      as: 'columns' // output name
+      localField: '_id',
+      foreignField: 'boardId',
+      as: 'columns'
     } },
     { $lookup: {
       from: cardModel.CARD_COLLECTION_NAME,
@@ -90,8 +89,6 @@ const getDetails = async (userId, boardId) => {
       localField: 'ownerIds',
       foreignField: '_id',
       as: 'owners',
-      // pipeline trong lookup là để xử lý một hoặc nhiều luồng cần thiết
-      // $project để chỉ định vài field không muốn lấy về bằng cách gán nó giá trị 0
       pipeline: [{ $project: { 'password': 0, 'verifyToken': 0 } }]
     } },
     { $lookup: {
@@ -105,7 +102,6 @@ const getDetails = async (userId, boardId) => {
   return result[0] || null
 }
 
-// Đẩy vào board
 const pushColumnOrderIds = async (column) => {
   try {
     const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOneAndUpdate(
@@ -117,7 +113,6 @@ const pushColumnOrderIds = async (column) => {
   } catch (error) { throw new Error(error) }
 }
 
-// Đẩy ra khỏi board
 const pullColumnOrderIds = async (column) => {
   try {
     const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOneAndUpdate(
@@ -159,7 +154,6 @@ const getBoards = async (userId, page, itemsPerPage, queryFilters) => {
     const queryConditions = [
       { _destroy: false },
       { $or: [
-        // Kiểm tra userId có nằm thuộc board không
         { ownerIds: { $all: [new ObjectId(userId)] } },
         { memberIds: { $all: [new ObjectId(userId)] } }
       ] }
@@ -177,9 +171,7 @@ const getBoards = async (userId, page, itemsPerPage, queryFilters) => {
         { $sort: { title: 1 } },
         { $facet: {
           'queryBoards': [
-            // Lượt bỏ số board những page phía trước: 3 (2,1)
             { $skip: pagingSkipValue(page, itemsPerPage) },
-            // Lấy số item (board) cho 1 page: 12
             { $limit: itemsPerPage }
           ],
           'queryTotalBoards': [{ $count: 'countedAllBoards' }]
@@ -211,13 +203,11 @@ const pushMemberIds = async (boardId, userId) => {
 
 const updateMembers = async (boardId, incomingMemberInfo) => {
   try {
-    // Tạo ra một biến updateCondition ban đầu là rỗng
     let updateCondition = {}
 
     if (incomingMemberInfo.action === BOARD_MEMBER_ACTIONS.REMOVE) {
       updateCondition = { $pull: { memberIds: new ObjectId(incomingMemberInfo.userId) } }
 
-      // Xóa luôn user khỏi tất cả card trong board
       await GET_DB().collection(cardModel.CARD_COLLECTION_NAME).updateMany(
         { boardId: new ObjectId(boardId) },
         { $pull: { memberIds: new ObjectId(incomingMemberInfo.userId) } }
@@ -226,7 +216,7 @@ const updateMembers = async (boardId, incomingMemberInfo) => {
 
     const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOneAndUpdate(
       { _id: new ObjectId(boardId) },
-      updateCondition, // truyền cái updateCondition ở đây
+      updateCondition,
       { returnDocument: 'after' }
     )
     return result

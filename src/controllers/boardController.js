@@ -8,7 +8,6 @@ const createNew = async (req, res, next) => {
 
     res.status(StatusCodes.CREATED).json(createdBoard)
   } catch (error) {
-    // Chuyển lỗi sang middleware (server)
     next(error)
   }
 }

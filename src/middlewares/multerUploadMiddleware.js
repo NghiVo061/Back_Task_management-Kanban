@@ -17,7 +17,7 @@ const fileFilter = (req, file, cb) => {
       return cb(new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, 'File type not allowed for attachment!'), false)
     }
   } else {
-    return cb(null, false) // bỏ qua các field khác
+    return cb(null, false)
   }
   cb(null, true)
 }

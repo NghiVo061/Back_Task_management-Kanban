@@ -2,16 +2,13 @@ export const cardSocket = (io, socket) => {
   const { boardService } = require('~/services/boardService')
   const { cardModel } = require('~/models/cardModel')
 
-  // Kéo thả card giữa các cột
   socket.on('FE_CARD_MOVED', async ({ boardId, currentCardId, prevColumnId, prevCardOrderIds, nextColumnId, nextCardOrderIds }) => {
     try {
-      // Lấy dữ liệu đầy đủ của card
       const cardData = await cardModel.findOneById(currentCardId)
       if (!cardData) {
         throw new Error('Card not found')
       }
 
-      // Cập nhật dữ liệu trong database
       await boardService.moveCardToDifferentColumn({
         currentCardId,
         prevColumnId,
@@ -20,7 +17,6 @@ export const cardSocket = (io, socket) => {
         nextCardOrderIds
       })
 
-      // Phát sự kiện đến tất cả client trong board, trừ người gửi
       socket.to(`board:${boardId}`).emit('BE_CARD_MOVED', {
         boardId,
         currentCardId,
@@ -28,7 +24,7 @@ export const cardSocket = (io, socket) => {
         prevCardOrderIds,
         nextColumnId,
         nextCardOrderIds,
-        cardData, // Gửi dữ liệu đầy đủ của card
+        cardData,
         actor: socket.id
       })
     } catch (error) {
@@ -36,7 +32,6 @@ export const cardSocket = (io, socket) => {
     }
   })
 
-  // Kéo thả card trong cùng cột
   socket.on('FE_CARD_MOVED_IN_COLUMN', ({ boardId, columnId, cardOrderIds }) => {
     const { columnModel } = require('~/models/columnModel')
 
@@ -56,12 +51,11 @@ export const cardSocket = (io, socket) => {
     try {
       const { boardId, createdCard } = data
 
-      // Broadcast đến tất cả client khác trong room board
       socket.broadcast.to(`board:${boardId}`).emit('BE_CARD_CREATED', {
         boardId,
         createdCard,
         actor: socket.id,
-        boardVersion: Date.now() // Optional: Để track version nếu cần
+        boardVersion: Date.now()
       })
     } catch (error) {
       console.error('Error handling FE_CARD_CREATED:', error)
@@ -70,11 +64,15 @@ export const cardSocket = (io, socket) => {
 
   socket.on('FE_CARD_UPDATED', async ({ boardId, cardId, columnId, newTitle }) => {
     try {
+      const card = await cardModel.findOneById(cardId)
+      if (!card) throw new Error('Card not found')
+
       socket.broadcast.to(`board:${boardId}`).emit('BE_CARD_UPDATED', {
         boardId,
         cardId,
         columnId,
         newTitle,
+        parentCardId: card.parentCardId || null,
         actor: socket.id,
         boardVersion: Date.now()
       })
@@ -104,12 +102,12 @@ export const cardSocket = (io, socket) => {
         throw new Error('Card not found')
       }
 
-      // Broadcast cho các client khác trong board
       socket.broadcast.to(`board:${boardId}`).emit('BE_COMMENT_ADDED', {
         boardId,
         columnId: card.columnId,
         cardId,
-        comment, // gửi luôn comment vừa thêm (BE có thể enrich thêm nếu cần)
+        comment,
+        parentCardId: card.parentCardId || null,
         actor: socket.id,
         boardVersion: Date.now()
       })
@@ -129,6 +127,7 @@ export const cardSocket = (io, socket) => {
         columnId: card.columnId,
         cardId,
         commentId,
+        parentCardId: card.parentCardId || null,
         actor: socket.id,
         boardVersion: Date.now()
       })
@@ -148,7 +147,8 @@ export const cardSocket = (io, socket) => {
         boardId,
         columnId: card.columnId,
         cardId,
-        attachments, // Gửi attachments mới
+        attachments,
+        parentCardId: card.parentCardId || null,
         actor: socket.id,
         boardVersion: Date.now()
       })
@@ -168,7 +168,8 @@ export const cardSocket = (io, socket) => {
         boardId,
         columnId: card.columnId,
         cardId,
-        attachmentUrl, // Gửi attachmentUrl để xóa
+        attachmentUrl,
+        parentCardId: card.parentCardId || null,
         actor: socket.id,
         boardVersion: Date.now()
       })
@@ -180,7 +181,6 @@ export const cardSocket = (io, socket) => {
 
   socket.on('FE_CARD_COVER_ADDED', async ({ boardId, cardId, cover }) => {
     try {
-
       const card = await cardModel.findOneById(cardId)
       if (!card) {
         throw new Error('Card not found')
@@ -190,7 +190,8 @@ export const cardSocket = (io, socket) => {
         boardId,
         columnId: card.columnId,
         cardId,
-        cover, // Gửi URL của cover mới
+        cover,
+        parentCardId: card.parentCardId || null,
         actor: socket.id,
         boardVersion: Date.now()
       })
@@ -202,7 +203,6 @@ export const cardSocket = (io, socket) => {
 
   socket.on('FE_CARD_COVER_REMOVED', async ({ boardId, cardId }) => {
     try {
-
       const card = await cardModel.findOneById(cardId)
       if (!card) {
         throw new Error('Card not found')
@@ -212,6 +212,7 @@ export const cardSocket = (io, socket) => {
         boardId,
         columnId: card.columnId,
         cardId,
+        parentCardId: card.parentCardId || null,
         actor: socket.id,
         boardVersion: Date.now()
       })
@@ -231,6 +232,7 @@ export const cardSocket = (io, socket) => {
         columnId: card.columnId,
         cardId,
         memberIds,
+        parentCardId: card.parentCardId || null,
         actor: socket.id,
         boardVersion: Date.now()
       })
@@ -239,5 +241,74 @@ export const cardSocket = (io, socket) => {
     }
   })
 
+  socket.on('FE_CARD_DESCRIPTION_UPDATED', async ({ boardId, cardId, columnId, newDescription }) => {
+    try {
+      const card = await cardModel.findOneById(cardId)
+      if (!card) {
+        throw new Error('Card not found')
+      }
+      socket.broadcast.to(`board:${boardId}`).emit('BE_CARD_DESCRIPTION_UPDATED', {
+        boardId,
+        cardId,
+        columnId,
+        newDescription,
+        parentCardId: card.parentCardId || null,
+        actor: socket.id,
+        boardVersion: Date.now()
+      })
+    } catch (error) {
+      socket.emit('BE_ERROR', { message: 'Failed to update card description' })
+    }
+  })
 
+  socket.on('FE_CARD_MADE_SUBCARD', async ({ boardId, childCardId, parentCardId }) => {
+    try {
+      const { cardModel } = require('~/models/cardModel')
+
+      const childCard = await cardModel.findOneById(childCardId)
+      const parentCard = await cardModel.findOneById(parentCardId)
+
+      if (!childCard || !parentCard) {
+        throw new Error('Child or parent card not found')
+      }
+
+      await cardModel.update(childCardId, { parentCardId })
+
+      socket.broadcast.to(`board:${boardId}`).emit('BE_CARD_MADE_SUBCARD', {
+        boardId,
+        childCardId,
+        parentCardId,
+        cardData: childCard,
+        actor: socket.id,
+        boardVersion: Date.now()
+      })
+
+    } catch (error) {
+      console.error('Error handling FE_CARD_MADE_SUBCARD:', error)
+      socket.emit('BE_ERROR', { message: 'Failed to create sub-card' })
+    }
+  })
+
+  socket.on('FE_SUBCARD_DELETED', async ({ boardId, columnId, cardId, parentCardId, actor }) => {
+    try {
+      const { cardModel } = require('~/models/cardModel')
+
+      if (!parentCardId) throw new Error('Parent card ID is required')
+
+      const parentCard = await cardModel.findOneById(parentCardId)
+      if (!parentCard) throw new Error('Parent card not found')
+
+      socket.broadcast.to(`board:${boardId}`).emit('BE_SUBCARD_DELETED', {
+        boardId,
+        columnId,
+        cardId,
+        parentCardId,
+        actor,
+        boardVersion: Date.now()
+      })
+    } catch (error) {
+      console.error('Error in FE_SUBCARD_DELETED:', error)
+      socket.emit('BE_ERROR', { message: 'Failed to delete sub-card' })
+    }
+  })
 }

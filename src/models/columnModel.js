@@ -29,7 +29,7 @@ const createNew = async (data) => {
     const validatedData = await validateData(data)
     const newColumn = {
       ...validatedData,
-      boardId: new ObjectId(validatedData.boardId) // ép kiểu objectId cho boardId trước khi thêm
+      boardId: new ObjectId(validatedData.boardId)
     }
     const createColumn = GET_DB().collection(COLUMN_COLLECTION_NAME).insertOne(newColumn)
 
@@ -94,7 +94,6 @@ const deleteOneById = async (columnId) => {
   }
 }
 
-// change
 const pullCardOrderIds = async (card) => {
   try {
     const result = await GET_DB()

@@ -23,7 +23,6 @@ const update = async (req, res, next) => {
   } catch (error) { next(error) }
 }
 
-// change
 const deleteItem = async (req, res, next) => {
   try {
     const cardId = req.params.id
@@ -34,7 +33,6 @@ const deleteItem = async (req, res, next) => {
   }
 }
 
-// change
 const deleteComment = async (req, res, next) => {
   try {
     const cardId = req.params.cardId

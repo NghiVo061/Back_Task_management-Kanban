@@ -17,7 +17,7 @@ const isAuthorized = async (req, res, next) => {
       env.ACCESS_TOKEN_SECRET_SIGNATURE
     )
 
-    req.jwtDecoded = accessTokenDecoded // id, email, ...
+    req.jwtDecoded = accessTokenDecoded
 
     next()
   } catch (error) {

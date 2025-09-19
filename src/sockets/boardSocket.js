@@ -27,7 +27,6 @@ const boardSocket = (io, socket) => {
 
   socket.on('FE_USER_REMOVED_FROM_BOARD', async ({ boardId, userId, removedBy, isSelf }) => {
     try {
-      // Tìm board
       const board = await boardModel.findOneById(boardId)
       if (!board) {
         socket.emit('BE_ERROR', {
@@ -39,7 +38,6 @@ const boardSocket = (io, socket) => {
         return
       }
 
-      // Cập nhật danh sách thành viên
       const result = await boardModel.updateMembers(boardId, {
         userId,
         action: 'REMOVE'
@@ -47,7 +45,6 @@ const boardSocket = (io, socket) => {
 
       console.log('Update members result:', { boardId, userId, found: !!result.value })
 
-      // Phát sự kiện tới tất cả client trong board
       io.emit('BE_USER_REMOVED_FROM_BOARD', {
         boardId,
         userId,
@@ -56,7 +53,6 @@ const boardSocket = (io, socket) => {
         boardVersion: Date.now()
       })
 
-      // Nếu là bị owner xóa, thông báo riêng cho user bị xóa
       if (!isSelf) {
         io.to(userId).emit('BE_USER_REMOVED_FROM_BOARD', {
           boardId,
@@ -81,21 +77,17 @@ const boardSocket = (io, socket) => {
 
   socket.on('FE_ADD_USER_TO_BOARD', async ({ boardId, userId, inviteeEmail }) => {
     try {
-      // Convert sang ObjectId
       const boardObjectId = new ObjectId(boardId)
       const userObjectId = new ObjectId(userId)
 
-      // Lấy board từ DB
       const board = await boardModel.findOneById(boardObjectId)
       if (!board) {
         socket.emit('BE_ERROR', { message: 'Board not found', boardId })
         return
       }
 
-      // Lấy thông tin user
       const existingUser = await userModel.findOneById(userObjectId)
 
-      // Emit cho tất cả client trong room board
       const payload = {
         boardId: boardId.toString(),
         userId: userId.toString(),

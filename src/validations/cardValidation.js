@@ -22,12 +22,10 @@ const createNew = async (req, res, next) => {
 }
 
 const update = async (req, res, next) => {
-  // Lưu ý không dùng hàm required() trong trường hợp Update
   const correctCondition = Joi.object({
     title: Joi.string().min(3).max(50).trim().strict(),
     description: Joi.string().optional(),
 
-    // change
     attachments: Joi.array().items({
       url: Joi.string(),
       filename: Joi.string()
@@ -35,8 +33,6 @@ const update = async (req, res, next) => {
   })
 
   try {
-    // Chỉ định abortEarly: false để trường hợp có nhiều lỗi validation thì trả về tất cả lỗi (video 52)
-    // Đối với trường hợp update, cho phép Unknown để không cần đẩy một số field lên
     await correctCondition.validateAsync(req.body, {
       abortEarly: false,
       allowUnknown: true

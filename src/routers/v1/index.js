@@ -1,4 +1,3 @@
-/* eslint-disable indent */
 import express from 'express'
 import { boardRouter } from '~/routers/v1/boardRouter'
 import { columnRouter } from '~/routers/v1/columnRouter'

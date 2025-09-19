@@ -29,7 +29,6 @@ const createNew = async (reqBody) => {
     const createdUser = await userModel.createNew(newUser)
     const getNewUser = await userModel.findOneById(createdUser.insertedId)
 
-    // Gửi email cho người dùng xác thực tài khoản
     const verificationLink = `${WEBSITE_DOMAIN}/account/verification?email=${getNewUser.email}&token=${getNewUser.verifyToken}`
 
     const customSubject = 'Joji: Please verify your email before using our services!'
@@ -57,7 +56,7 @@ const verifyAccount = async (reqBody) => {
 
     const updateData = {
       isActive: true,
-      verifyToken: null // cập nhật xóa token cũ tránh lạm dụng link verify bên email
+      verifyToken: null
     }
     const updatedUser = await userModel.update(existUser._id, updateData)
 
@@ -73,13 +72,10 @@ const login = async (reqBody) => {
 
     if (!existUser) throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found!')
     if (!existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is not active!')
-
-    // Dùng chuỗi salt của pass đã băm để mã hóa mật khẩu vừa nhập rồi so sánh
     if (!bcryptjs.compareSync(reqBody.password, existUser.password)) {
       throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your Email or Password is incorrect!')
     }
 
-    // Payload của jwt Token
     const userInfo = {
       _id: existUser._id,
       email: existUser.email
@@ -103,20 +99,16 @@ const login = async (reqBody) => {
 
 const refreshToken = async (clientRefreshToken) => {
   try {
-    // Bước 01: Thực hiện giải mã refreshToken xem nó có hợp lệ hay là không
     const refreshTokenDecoded = await JwtProvider.verifyToken(
       clientRefreshToken,
       env.REFRESH_TOKEN_SECRET_SIGNATURE
     )
 
-    // Đoạn này vì chúng ta chỉ lưu những thông tin unique và cố định của user trong token rồi, vì vậy có thể lấy luôn từ decoded ra, tiết kiệm query vào DB để lấy data mới.
     const userInfo = { _id: refreshTokenDecoded._id, email: refreshTokenDecoded.email }
 
-    // Bước 02: Tạo ra cái accessToken mới
     const accessToken = await JwtProvider.generateToken(
       userInfo,
       env.ACCESS_TOKEN_SECRET_SIGNATURE,
-      // 5 // 5 giây
       env.ACCESS_TOKEN_LIFE
     )
 
