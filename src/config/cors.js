@@ -5,9 +5,10 @@ import ApiError from '~/utils/ApiError'
 
 export const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin && env.BUILD_MODE === 'dev') {
+    if (env.BUILD_MODE === 'dev') {
       return callback(null, true)
     }
+
     if (WHITELIST_DOMAINS.includes(origin)) {
       return callback(null, true)
     }
