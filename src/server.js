@@ -18,7 +18,6 @@ import userSocket from './sockets/userSocket'
 
 const START_SERVER = () => {
   const app = express()
-  const port = env.PORT || 8888
 
   app.use((req, res, next) => {
     res.set('Cache-Control', 'no-store')
@@ -44,16 +43,25 @@ const START_SERVER = () => {
     socket.on('FE_JOIN_BOARD', (boardId) => {
       socket.join(`board:${boardId}`)
     })
-  
+
     inviteUserToBoardSocket(io, socket)
     columnSocket(io, socket)
     cardSocket(io, socket)
     boardSocket(io, socket)
     userSocket(io, socket)
   })
-  server.listen(port, () => {
-    console.log(`Example app listening on port ${port}`)
-  })
+
+  // Môi trường production
+  if (env.BUILD_MODE === 'production') {
+    server.listen(process.env.PORT, () => {
+      console.log(`Production:App listening on Port: ${process.env.PORT}`)
+    })
+  } else {
+    // Môi trường local dev
+    server.listen(process.env.LOCAL_DEV_APP_PORT, () => {
+      console.log(`Local: App listening on Port: ${process.env.LOCAL_DEV_APP_PORT}`)
+    })
+  }
 
   exitHook(async () => {
     try {
