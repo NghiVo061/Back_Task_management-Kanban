@@ -2,7 +2,7 @@ import { env } from '~/config/environment'
 
 export const WHITELIST_DOMAINS = [
   // 'http://localhost:5173'
-  'https://joji-web.vercel.app/'
+  'https://joji-web.vercel.app'
 ]
 
 export const BOARD_TYPES = {
