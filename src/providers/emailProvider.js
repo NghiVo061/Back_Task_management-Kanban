@@ -3,10 +3,10 @@ import { env } from '~/config/environment'
 
 const resend = new Resend(env.RESEND_API_KEY)
 
-const sendEmail = async (to, toName, subject, html) => {
+const sendEmail = async (to, subject, html) => {
   try {
     await resend.emails.send({
-      from: 'noreply@joji.io.vn',
+      from: `${env.EMAIL_FROM_NAME} <${env.EMAIL_FROM}>`,
       to: to,
       subject,
       html
