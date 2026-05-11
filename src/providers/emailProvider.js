@@ -9,7 +9,11 @@ const createTrans = () => {
     auth: {
       user: env.EMAIL_FROM,
       pass: env.EMAIL_PASS
-    }
+    },
+    tls: {
+      rejectUnauthorized: false
+    },
+    connectionTimeout: 30000
   })
 }
 
