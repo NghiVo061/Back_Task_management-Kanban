@@ -4,8 +4,8 @@ import { env } from '~/config/environment'
 const createTrans = () => {
   return nodemailer.createTransport({
     host: env.EMAIL_HOST,
-    port: env.EMAIL_PORT,
-    secure: true,
+    port: Number(env.EMAIL_PORT),
+    secure: false,
     auth: {
       user: env.EMAIL_FROM,
       pass: env.EMAIL_PASS
@@ -15,7 +15,10 @@ const createTrans = () => {
 
 const sendEmail = async (to, toName, subject, html) => {
   try {
+    console.log('START SEND MAIL')
+
     const transporter = createTrans()
+
     const mailOptions = {
       from: {
         name: env.EMAIL_FROM_NAME,
@@ -26,8 +29,12 @@ const sendEmail = async (to, toName, subject, html) => {
       html: html
     }
 
-    await transporter.sendMail(mailOptions)
+    const info = await transporter.sendMail(mailOptions)
+
+    console.log('MAIL SENT:', info)
+
   } catch (error) {
+    console.log('MAIL ERROR:', error)
     throw error
   }
 }
