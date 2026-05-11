@@ -4,7 +4,9 @@ import { env } from '~/config/environment'
 import ApiError from '~/utils/ApiError'
 
 const isAuthorized = async (req, res, next) => {
-  const clientAccessToken = req.cookies?.accessToken
+  const clientAccessToken =
+  req.cookies?.accessToken ||
+  req.headers.authorization?.split(' ')[1]
 
   if (!clientAccessToken) {
     next(new ApiError(StatusCodes.UNAUTHORIZED, 'Unauthorized! (token not found)'))
