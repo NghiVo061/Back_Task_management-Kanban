@@ -1,41 +1,20 @@
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 import { env } from '~/config/environment'
 
-const createTrans = () => {
-  return nodemailer.createTransport({
-    host: env.EMAIL_HOST,
-    port: Number(env.EMAIL_PORT),
-    secure: false,
-    auth: {
-      user: env.EMAIL_FROM,
-      pass: env.EMAIL_PASS
-    },
-    tls: {
-      rejectUnauthorized: false
-    },
-    connectionTimeout: 30000
-  })
-}
+const resend = new Resend(env.RESEND_API_KEY)
 
 const sendEmail = async (to, toName, subject, html) => {
   try {
     console.log('START SEND MAIL')
 
-    const transporter = createTrans()
+    const data = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: to,
+      subject,
+      html
+    })
 
-    const mailOptions = {
-      from: {
-        name: env.EMAIL_FROM_NAME,
-        address: env.EMAIL_FROM
-      },
-      to: `${toName} <${to}>`,
-      subject: subject,
-      html: html
-    }
-
-    const info = await transporter.sendMail(mailOptions)
-
-    console.log('MAIL SENT:', info)
+    console.log('MAIL SENT:', data)
 
   } catch (error) {
     console.log('MAIL ERROR:', error)
