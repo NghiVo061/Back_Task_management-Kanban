@@ -18,6 +18,26 @@ const verifyAccount = async (req, res, next) => {
   } catch (error) { next(error) }
 }
 
+const forgotPassword = async (req, res, next) => {
+  try {
+    const result = await userService.forgotPassword(req.body.email)
+
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const result = await userService.resetPassword(req.body)
+
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 const login = async (req, res, next) => {
   try {
     const result = await userService.login(req.body)
@@ -77,6 +97,8 @@ const update = async (req, res, next) => {
 export const userController = {
   createNew,
   verifyAccount,
+  forgotPassword,
+  resetPassword,
   login,
   logout,
   refreshToken,

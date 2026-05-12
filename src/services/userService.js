@@ -34,9 +34,77 @@ const createNew = async (reqBody) => {
     const customSubject = 'Joji: Please verify your email before using our services!'
 
     const htmlContent = `
-      <h3>Here is your verification link:</h3>
-      <h3>${verificationLink}</h3>
-      <h3>Sincerely,<br> - Joji - Task management website - </h3>
+      <div style="
+        background-color: #f4f5f7;
+        padding: 40px 20px;
+        font-family: Arial, sans-serif;
+      ">
+        <div style="
+          max-width: 600px;
+          margin: auto;
+          background: white;
+          border-radius: 12px;
+          padding: 40px 30px;
+          text-align: center;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        ">
+          <h1 style="
+            color: #1976d2;
+            margin-bottom: 10px;
+          ">
+            Welcome to Joji
+          </h1>
+
+          <p style="
+            color: #555;
+            font-size: 16px;
+            line-height: 1.6;
+          ">
+            Thank you for creating an account.
+            Please verify your email address to start using Joji.
+          </p>
+
+          <a
+            href="${verificationLink}"
+            style="
+              display: inline-block;
+              margin-top: 24px;
+              padding: 14px 28px;
+              background-color: #1976d2;
+              color: white;
+              text-decoration: none;
+              border-radius: 8px;
+              font-weight: bold;
+            "
+          >
+            Verify Email
+          </a>
+
+          <p style="
+            margin-top: 30px;
+            font-size: 14px;
+            color: #777;
+            word-break: break-all;
+          ">
+            If the button does not work, copy and paste this link into your browser:
+            <br /><br />
+            ${verificationLink}
+          </p>
+
+          <hr style="
+            margin: 32px 0;
+            border: none;
+            border-top: 1px solid #eee;
+          " />
+
+          <p style="
+            color: #999;
+            font-size: 13px;
+          ">
+            Joji - Task Management Platform
+          </p>
+        </div>
+      </div>
     `
     await nodeMailer.sendEmail(getNewUser.email, getNewUser.userName, customSubject, htmlContent)
 
@@ -92,6 +160,148 @@ const login = async (reqBody) => {
       env.REFRESH_TOKEN_LIFE)
 
     return { accessToken, refreshToken, ...pickUser(existUser) }
+  } catch (error) {
+    throw error
+  }
+}
+
+const forgotPassword = async (email) => {
+  try {
+    const existUser = await userModel.findOneByEmail(email)
+
+    if (!existUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found!')
+    }
+
+    const resetToken = uuidv4()
+
+    const updateData = {
+      resetPasswordToken: resetToken,
+      resetPasswordExpires: Date.now() + 15 * 60 * 1000
+    }
+
+    await userModel.update(existUser._id, updateData)
+
+    const resetLink =
+      `${WEBSITE_DOMAIN}/reset-password?token=${resetToken}`
+
+    const customSubject = 'Joji: Reset your password'
+
+    const htmlContent = `
+      <div style="
+        background-color: #f4f5f7;
+        padding: 40px 20px;
+        font-family: Arial, sans-serif;
+      ">
+        <div style="
+          max-width: 600px;
+          margin: auto;
+          background: white;
+          border-radius: 12px;
+          padding: 40px 30px;
+          text-align: center;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        ">
+          <h1 style="
+            color: #1976d2;
+            margin-bottom: 10px;
+          ">
+            Reset Your Password
+          </h1>
+
+          <p style="
+            color: #555;
+            font-size: 16px;
+            line-height: 1.6;
+          ">
+            Hello ${existUser.displayName},
+            <br /><br />
+            We received a request to reset your password.
+            Click the button below to continue.
+          </p>
+
+          <a
+            href="${resetLink}"
+            style="
+              display: inline-block;
+              margin-top: 24px;
+              padding: 14px 28px;
+              background-color: #1976d2;
+              color: white;
+              text-decoration: none;
+              border-radius: 8px;
+              font-weight: bold;
+            "
+          >
+            Reset Password
+          </a>
+
+          <p style="
+            margin-top: 24px;
+            color: #777;
+            font-size: 14px;
+          ">
+            This link will expire in 15 minutes.
+          </p>
+
+          <p style="
+            margin-top: 30px;
+            font-size: 14px;
+            color: #777;
+            word-break: break-all;
+          ">
+            If the button does not work, copy and paste this link into your browser:
+            <br /><br />
+            ${resetLink}
+          </p>
+
+          <hr style="
+            margin: 32px 0;
+            border: none;
+            border-top: 1px solid #eee;
+          " />
+
+          <p style="
+            color: #999;
+            font-size: 13px;
+          ">
+            Joji - Task Management Platform
+          </p>
+        </div>
+      </div>
+    `
+
+    await nodeMailer.sendEmail(
+      existUser.email,
+      customSubject,
+      htmlContent
+    )
+
+    return { success: true }
+  } catch (error) {
+    throw error
+  }
+}
+
+const resetPassword = async (reqBody) => {
+  try {
+    const usersCollection = await userModel.findOneByResetToken(reqBody.token)
+
+    if (!usersCollection) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Invalid reset token!')
+    }
+
+    if (Date.now() > usersCollection.resetPasswordExpires) {
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Reset token has expired!')
+    }
+
+    await userModel.update(usersCollection._id, {
+      password: bcryptjs.hashSync(reqBody.password, 8),
+      resetPasswordToken: null,
+      resetPasswordExpires: null
+    })
+
+    return { success: true }
   } catch (error) {
     throw error
   }
@@ -160,6 +370,8 @@ export const userService = {
   createNew,
   verifyAccount,
   login,
+  forgotPassword,
+  resetPassword,
   refreshToken,
   update
 }
