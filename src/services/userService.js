@@ -106,7 +106,11 @@ const createNew = async (reqBody) => {
         </div>
       </div>
     `
-    await nodeMailer.sendEmail(getNewUser.email, getNewUser.userName, customSubject, htmlContent)
+    await nodeMailer.sendEmail(
+      getNewUser.email,
+      customSubject,
+      htmlContent
+    )
 
     return pickUser(getNewUser)
   } catch (error) { throw error }
